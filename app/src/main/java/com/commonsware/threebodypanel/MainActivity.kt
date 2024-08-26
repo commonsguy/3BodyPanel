@@ -127,14 +127,17 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun OptionalSection(showFullPanel: MutableTransitionState<Boolean>) {
+    private fun OptionalSection(
+        showFullPanel: MutableTransitionState<Boolean>,
+        modifier: Modifier = Modifier
+    ) {
         AnimatedVisibility(
             visibleState = showFullPanel,
             enter = slideInUpwards,
             exit = slideOutDownwards
         ) {
             Box(
-                modifier = Modifier
+                modifier = modifier
                     .background(FULL_SECTION_COLOR)
                     .size(PANEL_WIDTH, SECTION_HEIGHT)
             )
@@ -142,7 +145,7 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun ButtonBar(modifier: Modifier = Modifier, onButtonClick: () -> Unit) {
+    private fun ButtonBar(modifier: Modifier = Modifier, onButtonClick: () -> Unit = {}) {
         Box(
             modifier = modifier
                 .size(width = PANEL_WIDTH, height = 120.dp)
