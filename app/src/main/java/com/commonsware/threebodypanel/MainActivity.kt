@@ -4,8 +4,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
@@ -66,31 +66,23 @@ class MainActivity : ComponentActivity() {
                     .wrapContentWidth(Alignment.Start)
             ) {
                 val panelState = remember { mutableStateOf<PanelState>(PanelState.Collapsed) }
-                val showPanel = remember { MutableTransitionState(false) }
-                val showFullPanel = remember { MutableTransitionState(true) }
 
                 Spacer(modifier = Modifier.weight(1.0f))
 
-                AnimatingPanel(showPanel, showFullPanel)
+                AnimatingPanel(panelState.value)
 
                 ButtonBar {
                     when (panelState.value) {
                         PanelState.Collapsed -> {
                             panelState.value = PanelState.Full
-                            showPanel.targetState = true
-                            showFullPanel.targetState = true
                         }
 
                         PanelState.Full -> {
                             panelState.value = PanelState.Partial
-                            showPanel.targetState = true
-                            showFullPanel.targetState = false
                         }
 
                         PanelState.Partial -> {
                             panelState.value = PanelState.Full
-                            showPanel.targetState = true
-                            showFullPanel.targetState = true
                         }
                     }
                 }
@@ -100,48 +92,56 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun AnimatingPanel(
-        showPanel: MutableTransitionState<Boolean>,
-        showFullPanel: MutableTransitionState<Boolean>,
+        panelState: PanelState,
         modifier: Modifier = Modifier
     ) {
-        AnimatedVisibility(
-            visibleState = showPanel,
-            enter = slideInUpwards,
-            exit = slideOutDownwards
-        ) {
-            Column(
-                modifier = modifier,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                OptionalSection(showFullPanel)
-
-                Box(
-                    modifier = Modifier
-                        .background(PERMANENT_SECTION_COLOR)
-                        .size(PANEL_WIDTH, SECTION_HEIGHT)
+        AnimatedContent(
+            targetState = panelState,
+            transitionSpec = {
+                ContentTransform(
+                    targetContentEnter = slideInUpwards,
+                    initialContentExit = slideOutDownwards
                 )
+            },
+            label = "AnimatedContent",
+        ) { targetState ->
+            Column(modifier = modifier) {
+                when (targetState) {
+                    PanelState.Collapsed -> {
+                        // nothing is visible
+                    }
 
-                OptionalSection(showFullPanel)
+                    PanelState.Partial -> {
+                        Box(
+                            modifier = Modifier
+                                .background(PERMANENT_SECTION_COLOR)
+                                .size(PANEL_WIDTH, SECTION_HEIGHT)
+                        )
+                    }
+
+                    PanelState.Full -> {
+                        OptionalSection()
+
+                        Box(
+                            modifier = Modifier
+                                .background(PERMANENT_SECTION_COLOR)
+                                .size(PANEL_WIDTH, SECTION_HEIGHT)
+                        )
+
+                        OptionalSection()
+                    }
+                }
             }
         }
     }
 
     @Composable
-    private fun OptionalSection(
-        showFullPanel: MutableTransitionState<Boolean>,
-        modifier: Modifier = Modifier
-    ) {
-        AnimatedVisibility(
-            visibleState = showFullPanel,
-            enter = slideInUpwards,
-            exit = slideOutDownwards
-        ) {
-            Box(
-                modifier = modifier
-                    .background(FULL_SECTION_COLOR)
-                    .size(PANEL_WIDTH, SECTION_HEIGHT)
-            )
-        }
+    private fun OptionalSection(modifier: Modifier = Modifier) {
+        Box(
+            modifier = modifier
+                .background(FULL_SECTION_COLOR)
+                .size(PANEL_WIDTH, SECTION_HEIGHT)
+        )
     }
 
     @Composable
