@@ -11,6 +11,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -81,6 +82,7 @@ class MainActivity : ComponentActivity() {
                                 .size(PANEL_WIDTH, SECTION_HEIGHT)
                         )
                     },
+                    topHeight = SECTION_HEIGHT,
                     middleHeight = SECTION_HEIGHT,
                     bottomHeight = SECTION_HEIGHT
                 )
@@ -89,7 +91,7 @@ class MainActivity : ComponentActivity() {
                     when (panelState.value) {
                         ThreeBodyPanelState.Collapsed -> {
                             panelState.value = ThreeBodyPanelState.Full
-                         }
+                        }
 
                         ThreeBodyPanelState.Full -> {
                             panelState.value = ThreeBodyPanelState.Partial
@@ -116,46 +118,49 @@ class MainActivity : ComponentActivity() {
         top: @Composable () -> Unit,
         middle: @Composable () -> Unit,
         bottom: @Composable () -> Unit,
+        topHeight: Dp,
         middleHeight: Dp,
         bottomHeight: Dp,
         modifier: Modifier = Modifier,
     ) {
-        val showPanel = MutableTransitionState(panelState.value != ThreeBodyPanelState.Collapsed)
         val showFullPanel = remember { MutableTransitionState(true) }
 
-        AnimatedVisibility(
-            visibleState = showPanel,
-            enter = slideInVertically { it },
-            exit = slideOutVertically { it }
+        val animatedOverallHeight by animateDpAsState(
+            targetValue = when (panelState.value) {
+                ThreeBodyPanelState.Collapsed -> 0.dp
+                else -> topHeight + middleHeight + bottomHeight
+            },
+            animationSpec = tween(durationMillis = 500), // update this value as needed
+            label = "animateDpAsState-overall"
+        )
+
+        Column(
+            modifier = modifier.height(animatedOverallHeight),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Bottom
         ) {
-            Column(
-                modifier = modifier,
-                horizontalAlignment = Alignment.CenterHorizontally
+            AnimatedVisibility(
+                visibleState = showFullPanel,
+                enter = slideInVertically { it },
+                exit = slideOutVertically { it }
             ) {
-                AnimatedVisibility(
-                    visibleState = showFullPanel,
-                    enter = slideInVertically { it },
-                    exit = slideOutVertically { it }
-                ) {
-                    top()
-                }
+                top()
+            }
 
-                val animatedHeight by animateDpAsState(
-                    targetValue = when (panelState.value) {
-                        ThreeBodyPanelState.Collapsed -> middleHeight
-                        ThreeBodyPanelState.Partial -> middleHeight
-                        ThreeBodyPanelState.Full -> middleHeight + bottomHeight
-                    },
-                    animationSpec = tween(durationMillis = 500), // update this value as needed
-                    label = "animateDpAsState"
-                ) {
-                    showFullPanel.targetState = panelState.value == ThreeBodyPanelState.Full
-                }
+            val animatedHeight by animateDpAsState(
+                targetValue = when (panelState.value) {
+                    ThreeBodyPanelState.Full -> middleHeight + bottomHeight
+                    else -> middleHeight
+                },
+                animationSpec = tween(durationMillis = 500), // update this value as needed
+                label = "animateDpAsState"
+            ) {
+                showFullPanel.targetState = panelState.value == ThreeBodyPanelState.Full
+            }
 
-                Column(modifier = Modifier.height(animatedHeight)) {
-                    middle()
-                    bottom()
-                }
+            Column(modifier = Modifier.height(animatedHeight)) {
+                middle()
+                bottom()
             }
         }
     }
