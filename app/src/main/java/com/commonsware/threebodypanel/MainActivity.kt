@@ -20,12 +20,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -35,12 +37,6 @@ private val SECTION_HEIGHT = 100.dp
 private val PANEL_BACKGROUND_COLOR = Color(0x1e, 0x1e, 0x1e)
 private val FULL_SECTION_COLOR = Color(0xff, 0xc2, 0x0a)
 private val PERMANENT_SECTION_COLOR = Color(0x0c, 0x7b, 0xdc)
-
-private enum class PanelState {
-    Collapsed,
-    Full,
-    Partial
-}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -58,28 +54,49 @@ class MainActivity : ComponentActivity() {
                     .fillMaxHeight()
                     .wrapContentWidth(Alignment.Start)
             ) {
-                val panelState = remember { mutableStateOf(PanelState.Collapsed) }
-                val showPanel = remember { MutableTransitionState(false) }
-
                 Spacer(modifier = Modifier.weight(1.0f))
 
-                AnimatingPanel(showPanel, panelState.value)
+                val panelState = remember { mutableStateOf(ThreeBodyPanelState.Collapsed) }
+
+                ThreeBodyPanel(
+                    panelState,
+                    top = {
+                        Box(
+                            modifier = Modifier
+                                .background(FULL_SECTION_COLOR)
+                                .size(PANEL_WIDTH, SECTION_HEIGHT)
+                        )
+                    },
+                    middle = {
+                        Box(
+                            modifier = Modifier
+                                .background(PERMANENT_SECTION_COLOR)
+                                .size(PANEL_WIDTH, SECTION_HEIGHT)
+                        )
+                    },
+                    bottom = {
+                        Box(
+                            modifier = Modifier
+                                .background(FULL_SECTION_COLOR)
+                                .size(PANEL_WIDTH, SECTION_HEIGHT)
+                        )
+                    },
+                    middleHeight = SECTION_HEIGHT,
+                    bottomHeight = SECTION_HEIGHT
+                )
 
                 ButtonBar {
                     when (panelState.value) {
-                        PanelState.Collapsed -> {
-                            panelState.value = PanelState.Full
-                            showPanel.targetState = true
+                        ThreeBodyPanelState.Collapsed -> {
+                            panelState.value = ThreeBodyPanelState.Full
+                         }
+
+                        ThreeBodyPanelState.Full -> {
+                            panelState.value = ThreeBodyPanelState.Partial
                         }
 
-                        PanelState.Full -> {
-                            panelState.value = PanelState.Partial
-                            showPanel.targetState = true
-                        }
-
-                        PanelState.Partial -> {
-                            panelState.value = PanelState.Full
-                            showPanel.targetState = true
+                        ThreeBodyPanelState.Partial -> {
+                            panelState.value = ThreeBodyPanelState.Full
                         }
                     }
                 }
@@ -87,12 +104,25 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    enum class ThreeBodyPanelState {
+        Collapsed,
+        Full,
+        Partial
+    }
+
     @Composable
-    private fun AnimatingPanel(
-        showPanel: MutableTransitionState<Boolean>,
-        panelState: PanelState,
-        modifier: Modifier = Modifier
+    fun ThreeBodyPanel(
+        panelState: State<ThreeBodyPanelState>,
+        top: @Composable () -> Unit,
+        middle: @Composable () -> Unit,
+        bottom: @Composable () -> Unit,
+        middleHeight: Dp,
+        bottomHeight: Dp,
+        modifier: Modifier = Modifier,
     ) {
+        val showPanel = MutableTransitionState(panelState.value != ThreeBodyPanelState.Collapsed)
+        val showFullPanel = remember { MutableTransitionState(true) }
+
         AnimatedVisibility(
             visibleState = showPanel,
             enter = slideInVertically { it },
@@ -102,63 +132,31 @@ class MainActivity : ComponentActivity() {
                 modifier = modifier,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                val showFullPanel = remember { MutableTransitionState(true) }
+                AnimatedVisibility(
+                    visibleState = showFullPanel,
+                    enter = slideInVertically { it },
+                    exit = slideOutVertically { it }
+                ) {
+                    top()
+                }
 
-                OptionalSection(showFullPanel)
+                val animatedHeight by animateDpAsState(
+                    targetValue = when (panelState.value) {
+                        ThreeBodyPanelState.Collapsed -> middleHeight
+                        ThreeBodyPanelState.Partial -> middleHeight
+                        ThreeBodyPanelState.Full -> middleHeight + bottomHeight
+                    },
+                    animationSpec = tween(durationMillis = 500), // update this value as needed
+                    label = "animateDpAsState"
+                ) {
+                    showFullPanel.targetState = panelState.value == ThreeBodyPanelState.Full
+                }
 
-                CollapsibleSections(panelState, showFullPanel, modifier)
+                Column(modifier = Modifier.height(animatedHeight)) {
+                    middle()
+                    bottom()
+                }
             }
-        }
-    }
-
-    @Composable
-    private fun CollapsibleSections(
-        panelState: PanelState,
-        showFullPanel: MutableTransitionState<Boolean>,
-        modifier: Modifier
-    ) {
-        val animatedHeight by animateDpAsState(
-            targetValue = when (panelState) {
-                PanelState.Collapsed -> SECTION_HEIGHT
-                PanelState.Partial -> SECTION_HEIGHT
-                PanelState.Full -> SECTION_HEIGHT * 2
-            },
-            animationSpec = tween(durationMillis = 500), // update this value as needed
-            label = "animateDpAsState"
-        ) {
-            showFullPanel.targetState = panelState == PanelState.Full
-        }
-
-        Column(modifier = Modifier.height(animatedHeight)) {
-            Box(
-                modifier = Modifier
-                    .background(PERMANENT_SECTION_COLOR)
-                    .size(PANEL_WIDTH, SECTION_HEIGHT)
-            )
-
-            Box(
-                modifier = modifier
-                    .background(FULL_SECTION_COLOR)
-                    .size(PANEL_WIDTH, SECTION_HEIGHT)
-            )
-        }
-    }
-
-    @Composable
-    private fun OptionalSection(
-        showFullPanel: MutableTransitionState<Boolean>,
-        modifier: Modifier = Modifier
-    ) {
-        AnimatedVisibility(
-            visibleState = showFullPanel,
-            enter = slideInVertically { it },
-            exit = slideOutVertically { it }
-        ) {
-            Box(
-                modifier = modifier
-                    .background(FULL_SECTION_COLOR)
-                    .size(PANEL_WIDTH, SECTION_HEIGHT)
-            )
         }
     }
 
