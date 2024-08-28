@@ -4,12 +4,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -61,10 +57,10 @@ class MainActivity : ComponentActivity() {
 
                 ThreeBodyPanel(
                     panelState,
-                    top = {
+                    top = { modifier ->
                         Box(
-                            modifier = Modifier
-                                .background(FULL_SECTION_COLOR)
+                            modifier = modifier
+                                .background(Color.Magenta)
                                 .size(PANEL_WIDTH, SECTION_HEIGHT)
                         )
                     },
@@ -84,7 +80,8 @@ class MainActivity : ComponentActivity() {
                     },
                     topHeight = SECTION_HEIGHT,
                     middleHeight = SECTION_HEIGHT,
-                    bottomHeight = SECTION_HEIGHT
+                    bottomHeight = SECTION_HEIGHT,
+                    modifier = Modifier.background(Color.DarkGray)
                 )
 
                 ButtonBar {
@@ -115,7 +112,7 @@ class MainActivity : ComponentActivity() {
     @Composable
     fun ThreeBodyPanel(
         panelState: State<ThreeBodyPanelState>,
-        top: @Composable () -> Unit,
+        top: @Composable (modifier: Modifier) -> Unit,
         middle: @Composable () -> Unit,
         bottom: @Composable () -> Unit,
         topHeight: Dp,
@@ -123,12 +120,11 @@ class MainActivity : ComponentActivity() {
         bottomHeight: Dp,
         modifier: Modifier = Modifier,
     ) {
-        val showFullPanel = remember { MutableTransitionState(true) }
-
         val animatedOverallHeight by animateDpAsState(
             targetValue = when (panelState.value) {
                 ThreeBodyPanelState.Collapsed -> 0.dp
-                else -> topHeight + middleHeight + bottomHeight
+                ThreeBodyPanelState.Partial -> middleHeight
+                ThreeBodyPanelState.Full -> topHeight + middleHeight + bottomHeight
             },
             animationSpec = tween(durationMillis = 500), // update this value as needed
             label = "animateDpAsState-overall"
@@ -139,26 +135,27 @@ class MainActivity : ComponentActivity() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Bottom
         ) {
-            AnimatedVisibility(
-                visibleState = showFullPanel,
-                enter = slideInVertically { it },
-                exit = slideOutVertically { it }
-            ) {
-                top()
-            }
+            val animatedTopHeight by animateDpAsState(
+                targetValue = when (panelState.value) {
+                    ThreeBodyPanelState.Full -> topHeight
+                    else -> 0.dp
+                },
+                animationSpec = tween(durationMillis = 500), // update this value as needed
+                label = "animateDpAsState-top"
+            )
 
-            val animatedHeight by animateDpAsState(
+            top(Modifier.height(animatedTopHeight))
+
+            val animatedRemainingHeight by animateDpAsState(
                 targetValue = when (panelState.value) {
                     ThreeBodyPanelState.Full -> middleHeight + bottomHeight
                     else -> middleHeight
                 },
                 animationSpec = tween(durationMillis = 500), // update this value as needed
-                label = "animateDpAsState"
-            ) {
-                showFullPanel.targetState = panelState.value == ThreeBodyPanelState.Full
-            }
+                label = "animateDpAsState-remaining"
+            )
 
-            Column(modifier = Modifier.height(animatedHeight)) {
+            Column(modifier = Modifier.height(animatedRemainingHeight)) {
                 middle()
                 bottom()
             }
